@@ -379,6 +379,14 @@ proc ::tp::prep_the_files {} {
 
       # convert to a temporary tcl file if necessary
       set suffix [filesuffix $f]
+      if {"$suffix" == "tcl"} {
+        # handle .tcl files with trailing backslash as if .hal
+        set has_backslash ""
+        catch {set has_backslash [exec grep {\\$} $f]} msg
+        if {"$has_backslash" != ""} {
+          set suffix hal
+        }
+      }
       switch -exact $suffix {
         tcl {
              if {[llength $f_argv]} {
@@ -435,6 +443,22 @@ proc ::tp::hal_to_tcl {ifile ofile} {
     set theline [gets $fdin]
     set line [string trim $theline]
     if {"$line" == ""} continue
+
+    # handle .hal files extended with backslash:
+    if {[string range $line end end] == "\\"} {
+      set line [string replace $line end end] ;# rm trailing backslash
+      if [info exists extend] {
+        set extend "${extend}$line" ;# subsequent extends
+      } else {
+        set extend "$line" ;# first extend
+      }
+      continue ;# get next line
+    } else {
+      if [info exists extend] {
+        set line "$extend"
+      }
+    }
+    catch {unset extend}
 
     # find *.hal files excluded from twopass processing:
     set  tmpline [string map -nocase {" " ""} $line]
